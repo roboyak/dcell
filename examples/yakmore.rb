@@ -8,11 +8,14 @@ puts "Waking crawler, hidden dragon.."
 
 require 'slurp'
 
+opts = {}
+http = Slurp::HTTP.new(opts)
+
 loop do
   link = vizor_node[:vizor].get_next_link
 
   unless link.nil?
-	  page = Slurp::Page.new(link)
+	  page = http.fetch_page(link)
 
 	  page.crawl
 
