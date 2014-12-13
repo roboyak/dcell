@@ -15,7 +15,10 @@ loop do
   link = vizor_node[:vizor].get_next_link
 
   unless link.nil?
-	  page = http.fetch_page(link)
+#	  page = http.fetch_page(link)
+	  response = HTTParty.get(link)
+	
+	  puts response.body, response.code, response.message, response.headers.inspect
 
 	  page.crawl
 

@@ -220,6 +220,7 @@ module Slurp
 
     def queue_links
       puts "Q'ing links"
+      puts "#{links}"
     end
 
     def save_categories

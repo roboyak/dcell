@@ -21,7 +21,7 @@ class Vizor
   end
 
   def seed_crawl
-    @links = ['https://dir.yahoo.com']
+    @links = ['https://dir.yahoo.com/']
   end
 
 end

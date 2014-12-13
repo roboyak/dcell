@@ -33,6 +33,7 @@ module Slurp
         url = URI(url) unless url.is_a?(URI)
         pages = []
         get(url, referer) do |response, code, location, redirect_to, response_time|
+puts "fetch url #{code}"          
           pages << Slurp::Page.new(location, :body => response.body.dup,
                                       :code => code,
                                       :headers => response.to_hash,
@@ -109,7 +110,7 @@ module Slurp
           # if redirected to a relative url, merge it with the host of the original
           # request url
           loc = url.merge(loc) if loc.relative?
-
+puts "getting... #{loc}"
           response, response_time = get_response(loc, referer)
           code = Integer(response.code)
           redirect_to = response.is_a?(Net::HTTPRedirection) ? URI(response['location']).normalize : nil

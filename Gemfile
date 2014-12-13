@@ -17,3 +17,4 @@ gemspec
 gem 'zk'
 gem 'mongoid'
 gem 'nokogiri'
+gem 'httparty'
