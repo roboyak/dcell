@@ -26,5 +26,5 @@ class Vizor
 
 end
 
-Vizor.supervise_as :itchy
+Vizor.supervise_as :vizor
 sleep
