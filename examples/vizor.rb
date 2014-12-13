@@ -6,7 +6,7 @@ DCell.start :id => "vizor"
 class Vizor
   include Celluloid
 
-  links = ['https://dir.yahoo.com']
+  @links = ['https://dir.yahoo.com']
 
   def initialize
     puts "Lets do this!"
@@ -18,7 +18,7 @@ class Vizor
   def get_next_link
     @n += 1
 
-    links.pop
+    @links.pop
   end
 
   def seed_crawl
