@@ -10,7 +10,7 @@ loop do
   link = vizor_node[:vizor].get_next_link
 
   unless link.empty?
-	  page = Page.new(link)
+	  page = Slurp::Page.new(link)
 
 	  page.crawl
 
