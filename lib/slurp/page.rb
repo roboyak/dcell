@@ -1,6 +1,7 @@
 require 'nokogiri'
 require 'ostruct'
 require 'webrick/cookie'
+require 'stringex'
 
 module Slurp
   class Page
@@ -37,6 +38,18 @@ module Slurp
       @url = url
       @data = OpenStruct.new
 
+      @parts            = url.path.downcase.split("/")      
+      category          = @parts.pop.to_s
+
+      @dir              = Hash.new
+      @dir["url"]       = url
+      @dir["path"]      = url.path
+      @dir["location"]  = "./slurp/yahoo#{url.path}"
+      @dir["raw_html"]  = "#{@dir["location"]}#{@dir["page"]}.html"
+      @dir["json_doc"]  = "#{@dir["location"]}#{@dir["page"]}.json"
+      @dir["timestamp"] = Time.now
+
+      @logger = params[:logger]
       @code = params[:code]
       @headers = params[:headers] || {}
       @headers['content-type'] ||= ['']
@@ -54,15 +67,19 @@ module Slurp
     #
     # Array of distinct A tag HREFs from the page
     #
-    def links
+    def links(mode='yahoo')
       return @links unless @links.nil?
       @links = []
       return @links if !doc
-
       doc.search("//a[@href]").each do |a|
-        u = a['href']
+        if mode == 'yahoo'
+          u = a['href'].downcase
+        else
+          u = a['href']
+        end
         next if u.nil? or u.empty?
-        abs = to_absolute(u) rescue next
+        #abs = to_absolute(u) rescue next
+        abs = to_abs(u) rescue next
         @links << abs if in_domain?(abs)
       end
       @links.uniq!
@@ -113,6 +130,7 @@ module Slurp
     #
     def html?
       !!(content_type =~ %r{^(text/html|application/xhtml+xml)\b})
+      true
     end
 
     #
@@ -150,6 +168,38 @@ module Slurp
     # Converts relative URL *link* into an absolute URL based on the
     # location of the page
     #
+    def to_abs(link)
+      return nil if link.nil?
+
+      # remove anchor
+      link = URI.encode(URI.decode(link.to_s.gsub(/#[a-zA-Z0-9_-]*$/,'')))
+      return nil if link.nil?
+      if link =~ /^https?:\/\/[\S]+/
+        #puts "keeper"
+        #puts ""
+        link
+      elsif link =~ /^http?:\/\/[\S]+/
+        #puts "keeper"
+        #puts ""
+        link
+      elsif link =~ /^\/\//  
+        #puts "should be tossed"
+        #puts ""
+      elsif link =~ /^\/\w/  
+        #puts "should be absolute"
+        #puts ""
+        link = "#{@url.scheme}://#{@url.host}#{link}"
+      elsif link =~ /^\w/  
+        #puts "should be relative"
+        #puts ""
+        link = "#{@url.to_s}/#{link}"
+      else
+        #puts "im lost"
+        #puts ""        
+      end
+      URI(link)
+    end
+
     def to_absolute(link)
       return nil if link.nil?
 
@@ -215,24 +265,76 @@ module Slurp
     end
 
     def crawl
-   	  puts "Crawling url: #{url}"
+   	  @logger.info "Crawling url: #{url}"
+      response = HTTParty.get(url, :verify => false)
+      #puts response.body, response.code, response.message, response.headers.inspect      
+      @body = response.body
+      @code = response.code
     end
 
     def queue_links
-      puts "Q'ing links"
-      puts "#{links}"
+      @logger.info "Q'ing links"
+      links.delete_if{ |l| skip_link?(l) }
     end
 
     def save_categories
-      puts "Saving categories"
+      @logger.info "Saving categories"
+
+      @dir["sub_cat"]        = Array.new
+      @dir["sub_cat_urls"]   = Array.new
+      @dir["sub_cat_map"]    = Array.new  
+      begin
+        keys                 = doc.css("div.cat li a").map { |a| a[:href] }.flatten
+        values               = doc.css("div.cat li a b").map { |a| a.children.map { |t| t.to_s } }.flatten
+        zip_cats             = keys.zip(values)
+      rescue
+        logger.info "choked while extracting sub categories #{@url}"
+      end
+
+      @dir["sub_cat"]      = values
+      @dir["sub_cat_urls"] = keys
+      @dir["sub_cat_map"]  = zip_cats              
+    end
+
+    def save_sites
+      @logger.info "Saving sites"
+
+      @dir["sites"] = Array.new
+      begin
+        @dir["sites"] = doc.css("div.st li a").map { |a| { url: a[:href], site: a.children.to_s, description: strip_body(a.parent.text) } }.flatten
+      rescue
+        logger.info "choked while extracting sites #{@url}"
+      end    
+    end
+
+    def strip_body(text)
+      #text.gsub(/^\S+\n\n/, "").gsub(/$\n\S*\n/, "")
+      text.gsub(/$\n\S*\n/, " ").sub("\n", " ")
     end
 
     def to_html
-      puts "to_html"
+      @logger.info "to_html"
+      FileUtils.mkdir_p @dir["location"]
+      open("#{@dir["raw_html"]}", 'w') do |f|
+        f.puts @body.to_ascii
+      end              
     end
 
     def to_json
-      puts "to_json"
+      @logger.info "to_json"
+      FileUtils.mkdir_p @dir["location"]
+      open("#{@dir["json_doc"]}", 'w') do |f|
+        f.puts @dir.to_json
+      end                      
     end
+
+    def skip_link?(link)
+      skip        = %r{^/thespark/}, %r{^/[Rr]egional/}, %r{^/new/}, %r{^/picks/}            
+      skip.any? { |pattern| link.path =~ pattern }
+    end  
+
+    def save_unique_links(links)
+    end
+
   end
 end

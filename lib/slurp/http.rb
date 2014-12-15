@@ -33,7 +33,6 @@ module Slurp
         url = URI(url) unless url.is_a?(URI)
         pages = []
         get(url, referer) do |response, code, location, redirect_to, response_time|
-puts "fetch url #{code}"          
           pages << Slurp::Page.new(location, :body => response.body.dup,
                                       :code => code,
                                       :headers => response.to_hash,
